@@ -95,6 +95,105 @@ class SegmentationEngine:
 
         return segments
 
+    def build_segments_grouped(
+        self,
+        reference_date: date = None,
+        group_by: List[str] = None,
+        filters: Dict[str, str] = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Build segments grouped by a chosen set of dimensions.
+        group_by: subset of ['crop','stage','state','language','device_type'].
+        filters: optional {dim: value} to pre-filter growers.
+        When group_by has fewer dimensions, segments merge across the omitted ones.
+        """
+        if reference_date is None:
+            reference_date = date.today()
+        VALID_DIMS = {"crop", "stage", "state", "language", "device_type"}
+        if not group_by:
+            group_by = list(VALID_DIMS)
+        group_by = [d for d in group_by if d in VALID_DIMS]
+        if not group_by:
+            group_by = ["crop"]
+
+        growers_df = self.store.growers.copy()
+
+        # Compute current stage for each grower
+        current_stages = []
+        for _, row in growers_df.iterrows():
+            stage = self.store.get_grower_current_stage(row["grower_id"], reference_date)
+            current_stages.append(stage)
+        growers_df["current_stage"] = current_stages
+
+        # Apply filters
+        if filters:
+            for dim, val in filters.items():
+                if val and dim == "stage":
+                    growers_df = growers_df[growers_df["current_stage"] == val]
+                elif val and dim in growers_df.columns:
+                    growers_df = growers_df[growers_df[dim] == val]
+
+        if growers_df.empty:
+            return []
+
+        # Group by the chosen dimensions
+        group_cols = []
+        dim_map = {"crop": "crop", "stage": "current_stage", "state": "state",
+                    "language": "language", "device_type": "device_type"}
+        for d in group_by:
+            col = dim_map.get(d)
+            if col and col in growers_df.columns:
+                group_cols.append(col)
+
+        if not group_cols:
+            group_cols = ["crop"]
+
+        grouped = growers_df.groupby(group_cols, dropna=False)
+
+        segments = []
+        for keys, group in grouped:
+            keys_list = keys if isinstance(keys, tuple) else [keys]
+            key_dict = dict(zip(group_cols, keys_list))
+
+            crop = key_dict.get("crop", group["crop"].mode().iloc[0] if not group["crop"].mode().empty else "unknown")
+            stage = key_dict.get("current_stage", group["current_stage"].mode().iloc[0] if not group["current_stage"].mode().empty else "unknown")
+            state = key_dict.get("state", group["state"].mode().iloc[0] if not group["state"].mode().empty else "unknown")
+            language = key_dict.get("language", group["language"].mode().iloc[0] if not group["language"].mode().empty else "unknown")
+            device = key_dict.get("device_type", group["device_type"].mode().iloc[0] if not group["device_type"].mode().empty else "unknown")
+
+            threat_info = STAGE_THREAT_MAP.get(stage, STAGE_THREAT_MAP["unknown"])
+            products = CROP_PRODUCT_MAP.get(crop, [])
+
+            # Build segment_id from group-by dimensions only
+            id_parts = []
+            for d in group_by:
+                val = {"crop": crop, "stage": stage, "state": state,
+                       "language": language, "device_type": device}.get(d, "unknown")
+                id_parts.append(str(val).replace(" ", "_").lower())
+            segment_id = "_".join(id_parts)
+
+            segment = {
+                "segment_id": segment_id,
+                "crop": crop,
+                "stage": stage,
+                "state": state,
+                "language": language,
+                "device_type": device,
+                "group_by": group_by,
+                "grower_count": len(group),
+                "grower_ids": group["grower_id"].tolist(),
+                "avg_farm_size": round(group["grower_farm_size"].mean(), 2),
+                "avg_age": round(group["grower_age"].mean(), 1),
+                "threat": threat_info["threat"],
+                "threat_category": threat_info["category"],
+                "recommended_products": products,
+                "tehsils": group["tehsil"].unique().tolist(),
+            }
+            segments.append(segment)
+
+        segments.sort(key=lambda s: s["grower_count"], reverse=True)
+        return segments
+
     def get_grower_context(
         self, grower_id: str, reference_date: date = None
     ) -> Dict[str, Any]:
@@ -204,6 +303,75 @@ class SegmentationEngine:
             "recommended_channel": channel,
         }
         return context
+
+    def get_segment_context(
+        self, segment: Dict[str, Any], reference_date: date = None
+    ) -> Dict[str, Any]:
+        """Build aggregated context for a segment (group of growers)."""
+        if reference_date is None:
+            reference_date = date.today()
+
+        store = self.store
+        crop = segment.get("crop", "unknown")
+        stage = segment.get("stage", "unknown")
+        state = segment.get("state", "")
+        language = segment.get("language", "Hindi")
+        device = segment.get("device_type", "unknown")
+        threat_info = STAGE_THREAT_MAP.get(stage, STAGE_THREAT_MAP["unknown"])
+        products = CROP_PRODUCT_MAP.get(crop, [])
+
+        # Aggregate inventory across tehsils in this segment
+        tehsils = segment.get("tehsils", [])
+        available_products = []
+        for prod in products:
+            total_stock = 0
+            for tehsil in tehsils:
+                inv = store.get_local_inventory(tehsil, prod)
+                total_stock += int(inv["sku_qty"].sum()) if not inv.empty else 0
+            available_products.append({
+                "product": prod,
+                "total_stock": total_stock,
+                "in_stock": bool(total_stock > 0),
+            })
+
+        best_product = "Syngenta product"
+        for p in available_products:
+            if p["in_stock"]:
+                best_product = p["product"]
+                break
+        if best_product == "Syngenta product" and available_products:
+            best_product = available_products[0]["product"]
+
+        # Channel recommendation based on device type in segment
+        if device == "smartphone":
+            channel = "whatsapp"
+        elif device == "keypad":
+            channel = "voice_call"
+        else:
+            channel = "sms"
+
+        grower_count = segment.get("grower_count", 0)
+        avg_farm_size = segment.get("avg_farm_size", 0)
+        avg_age = segment.get("avg_age", 0)
+
+        return {
+            "segment_id": segment.get("segment_id", ""),
+            "crop": crop,
+            "current_stage": stage,
+            "state": state,
+            "district": segment.get("tehsils", [""])[0] if segment.get("tehsils") else "",
+            "tehsils": tehsils,
+            "language": language,
+            "device_type": device,
+            "grower_count": grower_count,
+            "avg_farm_size_acres": avg_farm_size,
+            "avg_age": avg_age,
+            "threat": threat_info["threat"],
+            "threat_category": threat_info["category"],
+            "recommended_products": available_products,
+            "product_recommended": best_product,
+            "recommended_channel": channel,
+        }
 
     def get_segment_summary(self, reference_date: date = None) -> Dict[str, Any]:
         """High-level summary statistics across all segments."""

@@ -155,6 +155,47 @@ class CampaignOrchestrator:
             "offline_rep_handoff": offline_rep,
         }
 
+    def build_segment_delivery_plan(
+        self, segment_context: Dict[str, Any]
+    ) -> Dict[str, Any]:
+        """Build a scaled delivery plan targeting an entire farmer segment."""
+        device = segment_context.get("device_type", "unknown")
+        grower_count = segment_context.get("grower_count", 0)
+
+        base_plan = self.build_delivery_plan(
+            {
+                "device_type": device,
+                "whatsapp_history": {"total_messages": 0, "opened": 0},
+                "tehsil": segment_context.get("tehsils", [""])[0] if segment_context.get("tehsils") else "",
+                "recommended_products": segment_context.get("recommended_products", []),
+            }
+        )
+
+        plan = {
+            "segment_id": segment_context.get("segment_id", ""),
+            "primary_channel": base_plan["primary_channel"],
+            "channel_sequence": base_plan["channel_sequence"],
+            "fallback_rules": base_plan["fallback_rules"],
+            "routing_reason": base_plan["routing_reason"],
+            "send_window": base_plan["send_window"],
+            "reach": grower_count,
+            "bulk_delivery": {
+                "strategy": "broadcast" if grower_count > 50 else "targeted",
+                "estimated_delivery_time": "2-4 hours" if grower_count > 50 else "immediate",
+            },
+        }
+
+        if "field_rep" in base_plan.get("channel_sequence", []):
+            plan["offline_rep_handoff"] = {
+                "action": "Queue for territory-wide field visit",
+                "territory": segment_context.get("state", ""),
+                "affected_tehsils": segment_context.get("tehsils", []),
+                "product_to_promote": segment_context.get("product_recommended", ""),
+                "grower_count": grower_count,
+            }
+
+        return plan
+
     def validate_content(
         self, content: Dict[str, str], expected_product: str = ""
     ) -> Dict[str, Any]:

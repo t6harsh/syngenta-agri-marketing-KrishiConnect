@@ -27,6 +27,39 @@ except ImportError:
 # ──────────────────────────────────────────────────────
 # Vernacular Templates (fallback when no API key)
 # ──────────────────────────────────────────────────────
+SEGMENT_TEMPLATES = {
+    "Hindi": {
+        "whatsapp": "🌾 नमस्ते {state} के किसान भाइयो! {crop} फसल अभी {stage} अवस्था में है। आपके क्षेत्र में {threat} का खतरा बढ़ रहा है। {product} का छिड़काव करें — आपके स्थानीय दुकानदार पर उपलब्ध है। 📞 अधिक जानकारी के लिए मिस्ड कॉल करें।",
+        "sms": "{state} me {crop} kisanon! {threat} ka khatra. {product} spray kare. Apne kshetra ke dealer se sampark kare.",
+        "voice_script": "नमस्कार किसान भाइयो, मैं सिंजेंटा की तरफ से बोल रहा हूँ। आपकी {crop} फसल में {threat} का खतरा है। {product} का उपयोग करें। अपने स्थानीय दुकानदार से संपर्क करें।",
+    },
+    "Punjabi": {
+        "whatsapp": "🌾 ਸਤ ਸ੍ਰੀ ਅਕਾਲ {state} ਦੇ ਕਿਸਾਨ ਵੀਰੋ! ਤੁਹਾਡੀ {crop} ਫ਼ਸਲ {stage} ਅਵਸਥਾ ਵਿੱਚ ਹੈ। {threat} ਦਾ ਖ਼ਤਰਾ ਵੱਧ ਰਿਹਾ ਹੈ। {product} ਦੀ ਸਪਰੇ ਕਰੋ — ਸਥਾਨਕ ਡੀਲਰ ਤੋਂ ਲਵੋ।",
+        "sms": "{state} de kisan veero! {crop} vich {threat} da khatra. {product} spray karo. sthani dealer to lo.",
+        "voice_script": "ਸਤ ਸ੍ਰੀ ਅਕਾਲ ਕਿਸਾਨ ਵੀਰੋ, ਮੈਂ ਸਿੰਜੈਂਟਾ ਵੱਲੋਂ ਬੋਲ ਰਿਹਾ ਹਾਂ। ਤੁਹਾਡੀ {crop} ਫ਼ਸਲ ਵਿੱਚ {threat} ਦਾ ਖ਼ਤਰਾ ਹੈ। {product} ਵਰਤੋ।",
+    },
+    "Marathi": {
+        "whatsapp": "🌾 नमस्कार {state} मधील शेतकरी बंधूंनो! तुमच्या {crop} पिकावर सध्या {stage} अवस्था आहे। {threat} चा धोका वाढत आहे। {product} ची फवारणी करा — जवळच्या दुकानात उपलब्ध.",
+        "sms": "{state} til shhetakari! {crop} var {threat} cha dhoka. {product} favarani kara. sthanik dealer la bheta.",
+        "voice_script": "नमस्कार शेतकरी बंधूंनो, मी सिंजेंटा कडून बोलत आहे. तुमच्या {crop} पिकावर {threat} चा धोका आहे. {product} वापरा.",
+    },
+    "Gujarati": {
+        "whatsapp": "🌾 નમસ્તે {state} ના ખેડૂત ભાઈઓ! તમારો {crop} પાક {stage} અવસ્થામાં છે. {threat} નો ખતરો વધી રહ્યો છે. {product} નો છંટકાવ કરો — સ્થાનિક ડીલર પાસેથી મળશે.",
+        "sms": "{state} na kheduto! {crop} ma {threat} no khataro. {product} spray karo. sthanik dealer ne mlo.",
+        "voice_script": "નમસ્કાર ખેડૂત ભાઈઓ, હું સિન્જેન્ટા તરફથી બોલું છું. તમારા {crop} પાકમાં {threat} નો ખતરો છે. {product} વાપરો.",
+    },
+    "Kannada": {
+        "whatsapp": "🌾 ನಮಸ್ಕಾರ {state} ನ ರೈತ ಬಂಧುಗಳಿರಾ! ನಿಮ್ಮ {crop} ಬೆಳೆ {stage} ಹಂತದಲ್ಲಿದೆ. {threat} ಅಪಾಯ ಹೆಚ್ಚಾಗಿದೆ. {product} ಸಿಂಪಡಿಸಿ — ಸ್ಥಳೀಯ ಡೀಲರ್ ಬಳಿ ಲಭ್ಯ.",
+        "sms": "{state} raita bandhugale! {crop} bele {threat} apaya. {product} simpadisi. sthanika dealer hattira.",
+        "voice_script": "ನಮಸ್ಕಾರ ರೈತ ಬಂಧುಗಳಿರಾ, ನಾನು ಸಿಂಜೆಂಟಾ ಇಂದ ಮಾತನಾಡುತ್ತಿದ್ದೇನೆ. ನಿಮ್ಮ {crop} ಬೆಳೆಯಲ್ಲಿ {threat} ಅಪಾಯವಿದೆ. {product} ಬಳಸಿ.",
+    },
+    "Bengali": {
+        "whatsapp": "🌾 নমস্কার {state} এর কৃষক ভাইয়েরা! আপনার {crop} ফসল {stage} পর্যায়ে আছে। {threat} এর ঝুঁকি বাড়ছে। {product} স্প্রে করুন — স্থানীয় ডিলারের কাছে পাওয়া যাবে।",
+        "sms": "{state} er krishak! {crop} te {threat} er jhuki. {product} spray korun. sthanik dealer e jan.",
+        "voice_script": "নমস্কার কৃষক ভাইয়েরা, আমি সিনজেন্টা থেকে বলছি। আপনার {crop} ফসলে {threat} এর ঝুঁকি আছে। {product} ব্যবহার করুন।",
+    },
+}
+
 TEMPLATES = {
     "Hindi": {
         "whatsapp": "🌾 नमस्ते किसान भाई! आपकी {crop} फसल अभी {stage} अवस्था में है। {threat} का खतरा बढ़ रहा है। {product} का छिड़काव करें — आपके नज़दीकी {district} के दुकानदार पर उपलब्ध है। 📞 अधिक जानकारी के लिए मिस्ड कॉल करें।",
@@ -387,7 +420,250 @@ ENGLISH: <english translation>
             content = self.generate(ctx, format_type)
             results.append(content)
         return results
-    
+
+    def generate_for_segment(
+        self,
+        segment_context: Dict[str, Any],
+        format_type: str = "auto",
+        weather_triggers: list = None,
+    ) -> Dict[str, Any]:
+        """
+        Generate marketing content targeting an entire segment of farmers.
+
+        Args:
+            segment_context: Output from SegmentationEngine.get_segment_context()
+            format_type: 'whatsapp', 'sms', 'voice_script', or 'auto'
+            weather_triggers: Optional list of active disease triggers
+
+        Returns:
+            Dict with generated content, reach stats, and delivery plan.
+        """
+        if format_type == "auto":
+            channel = segment_context.get("recommended_channel", "sms")
+            format_type = {
+                "whatsapp": "whatsapp",
+                "sms": "sms",
+                "voice_call": "voice_script",
+            }.get(channel, "sms")
+
+        best_product = segment_context.get("product_recommended", "Syngenta product")
+        threat = segment_context.get("threat", "pest/disease")
+
+        if weather_triggers:
+            severity_order = {"critical": 0, "high": 1, "medium": 2}
+            sorted_triggers = sorted(
+                weather_triggers,
+                key=lambda t: severity_order.get(t.get("severity", "medium"), 3),
+            )
+            if sorted_triggers:
+                threat = sorted_triggers[0]["disease"]
+                best_product = sorted_triggers[0].get(
+                    "recommended_product", best_product
+                )
+
+        context_vars = {
+            "crop": segment_context.get("crop", "crop"),
+            "stage": segment_context.get("current_stage", "growth"),
+            "threat": threat,
+            "product": best_product,
+            "district": segment_context.get("tehsils", [""])[0] if segment_context.get("tehsils") else "",
+            "state": segment_context.get("state", ""),
+            "language": segment_context.get("language", "Hindi"),
+            "farm_size": segment_context.get("avg_farm_size_acres", 0),
+            "grower_count": segment_context.get("grower_count", 0),
+        }
+
+        grower_count = segment_context.get("grower_count", 0)
+        result = {
+            "segment_id": segment_context.get("segment_id", ""),
+            "language": context_vars["language"],
+            "channel": segment_context.get("recommended_channel", "sms"),
+            "product_recommended": best_product,
+            "reach": grower_count,
+            "generation_method": "template",
+            "weather_triggers": weather_triggers or [],
+        }
+
+        if self.gemini_model:
+            result["generation_method"] = "gemini"
+            try:
+                result["content"] = self._generate_segment_with_gemini(
+                    context_vars, format_type
+                )
+            except Exception as e:
+                print(f"[ContentEngine] Gemini segment generation failed: {e}. Falling back.")
+                result["generation_method"] = "template"
+                result["content"] = self._generate_from_segment_template(
+                    context_vars, format_type
+                )
+        else:
+            result["content"] = self._generate_from_segment_template(
+                context_vars, format_type
+            )
+
+        result["content"]["visual_prompt"] = self._generate_segment_visual_prompt(
+            context_vars
+        )
+
+        threat_lower = context_vars["threat"].lower()
+        if "blight" in threat_lower or "rust" in threat_lower or "wilt" in threat_lower:
+            demo_image = "https://images.unsplash.com/photo-1592843997784-07e33dc3a105?q=80&w=400&auto=format&fit=crop"
+        else:
+            demo_image = "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?q=80&w=400&auto=format&fit=crop"
+        result["content"]["generated_image_url"] = demo_image
+
+        result["content"]["video_storyboard"] = self._generate_segment_video_storyboard(
+            context_vars
+        )
+
+        from backend.orchestrator import CampaignOrchestrator
+        orch = CampaignOrchestrator()
+        result["guardrail_check"] = orch.validate_content(
+            result["content"], best_product
+        )
+
+        voice_script = result.get("content", {}).get("voice_script", "")
+        if not voice_script and "voice_call script" in result.get("content", {}):
+            voice_script = result["content"]["voice_call script"]
+
+        if voice_script:
+            print("[ContentEngine] Synthesizing audio for segment...")
+            result["content"]["voice_audio_base64"] = self._generate_audio(
+                voice_script,
+                context_vars["language"]
+            )
+
+        return result
+
+    def _generate_segment_with_gemini(self, ctx: Dict, format_type: str) -> Dict[str, str]:
+        """Generate segment-targeted content using Gemini API."""
+        user_prompt = f"""Generate a GROUP {format_type} marketing message targeting multiple farmers with these EXACT parameters:
+- Crop: {ctx['crop']}
+- Current Stage: {ctx['stage']}
+- Active Threat: {ctx['threat']}
+- Product to Promote: {ctx['product']}
+- Target Language: {ctx['language']}
+- Region: {ctx['state']}
+- Estimated Farmers Reached: {ctx.get('grower_count', 0)}
+
+The message should address farmers as a group (plural/collective form).
+Generate the message in {ctx['language']} language.
+Also provide an English translation.
+Format your response as:
+ORIGINAL: <message in target language>
+ENGLISH: <english translation>
+"""
+        response = self.gemini_model.generate_content(
+            [
+                {
+                    "role": "user",
+                    "parts": [{"text": SYSTEM_PROMPT + "\n\n" + user_prompt}],
+                }
+            ]
+        )
+        text = response.text.strip()
+
+        original = text
+        english = ""
+        if "ORIGINAL:" in text and "ENGLISH:" in text:
+            parts = text.split("ENGLISH:")
+            original = parts[0].replace("ORIGINAL:", "").strip()
+            english = parts[1].strip()
+
+        return {
+            format_type: original,
+            "english_translation": english,
+        }
+
+    def _generate_from_segment_template(self, ctx: Dict, format_type: str) -> Dict[str, str]:
+        """Generate segment-targeted content using pre-built vernacular templates."""
+        lang = ctx["language"]
+        templates = SEGMENT_TEMPLATES.get(lang, SEGMENT_TEMPLATES["Hindi"])
+
+        result = {}
+        for fmt in ["whatsapp", "sms", "voice_script"]:
+            template = templates.get(fmt, "")
+            result[fmt] = template.format(**ctx) if template else ""
+
+        return result
+
+    def _generate_segment_visual_prompt(self, ctx: Dict) -> str:
+        """Generate a visual prompt for segment-targeted campaign imagery."""
+        lang_script = {
+            "Hindi": "Devanagari script",
+            "Punjabi": "Gurmukhi script",
+            "Marathi": "Devanagari script",
+            "Gujarati": "Gujarati script",
+            "Kannada": "Kannada script",
+            "Bengali": "Bengali script",
+        }
+        script = lang_script.get(ctx["language"], "Devanagari script")
+
+        return (
+            f"Agricultural marketing infographic targeting farmer community in {ctx['state']}. "
+            f"Professional clean design, Syngenta green brand colors. "
+            f"Split layout: LEFT SIDE shows a group of farmers examining {ctx['threat']} damage on "
+            f"{ctx['crop']} during {ctx['stage']} stage. "
+            f"RIGHT SIDE shows a thriving {ctx['crop']} field after community-wide treatment. "
+            f"CENTER: Product packaging of '{ctx['product']}' prominently displayed with Syngenta logo. "
+            f"BOTTOM BANNER: Text overlay in {script} ({ctx['language']} language) reading "
+            f"'{ctx['product']}' and 'Ask your local dealer'. "
+            f"Region context: {ctx['state']}. Style: photorealistic crop imagery, flat-design infographic "
+            f"elements, high contrast for mobile viewing. Aspect ratio: 1:1 square."
+        )
+
+    def _generate_segment_video_storyboard(self, ctx: Dict) -> list:
+        """Generate a 30-second video storyboard targeting a farmer segment."""
+        return [
+            {
+                "scene": 1,
+                "duration_sec": 5,
+                "visual": f"Panoramic wide shot of {ctx['crop']} fields across {ctx['state']}, "
+                f"with multiple farmers working. Text: '{ctx['grower_count']} farmers affected.'",
+                "narration_lang": ctx["language"],
+                "narration_en": f"Attention {ctx['crop']} farmers in {ctx['state']}! "
+                f"Your crop is in the {ctx['stage']} stage and facing threats.",
+                "text_overlay": f"⚠️ {ctx['threat']} alert for {ctx['state']}",
+            },
+            {
+                "scene": 2,
+                "duration_sec": 8,
+                "visual": f"Split screen showing {ctx['threat']} symptoms across multiple "
+                f"fields in the region. Community concern imagery.",
+                "narration_lang": ctx["language"],
+                "narration_en": f"{ctx['threat']} is spreading across {ctx['state']}. "
+                f"Act now to protect your yield.",
+                "text_overlay": f"Protect your community's crop!",
+            },
+            {
+                "scene": 3,
+                "duration_sec": 7,
+                "visual": f"Product shot: {ctx['product']} packaging in a farmer's hands. "
+                f"Group of farmers applying the product. Syngenta logo visible.",
+                "narration_lang": ctx["language"],
+                "narration_en": f"Use {ctx['product']} from Syngenta — "
+                f"the trusted choice of {ctx['state']} farmers.",
+                "text_overlay": f"✅ {ctx['product']}",
+            },
+            {
+                "scene": 4,
+                "duration_sec": 5,
+                "visual": f"Before/after: Left = damaged {ctx['crop']} fields across the district, "
+                f"Right = vibrant green fields after community-wide treatment.",
+                "narration_lang": ctx["language"],
+                "narration_en": f"Protect your crop. Protect your community's income.",
+                "text_overlay": f"Stronger together",
+            },
+            {
+                "scene": 5,
+                "duration_sec": 5,
+                "visual": f"Syngenta branding with dealer locator map of {ctx['state']}. "
+                f"Text in {ctx['language']}: 'Available at dealers near you'.",
+                "narration_lang": ctx["language"],
+                "narration_en": f"Visit your nearest dealer today. Or give a missed call.",
+                "text_overlay": f"📞 Missed call: 1800-XXX-XXXX",
+            },
+        ]
 
     def _generate_audio(self, text: str, language: str) -> str:
         """Generate audio and return as base64 string for direct frontend playback."""

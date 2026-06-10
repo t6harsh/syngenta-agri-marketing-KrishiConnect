@@ -54,7 +54,7 @@
             <!-- ─── [01] GLOBAL_TELEMETRY ─── -->
             <section class="tab-panel active" id="panel-dashboard">
                 <div class="readout-header">
-                    <h2>GLOBAL TELEMETRY</h2>
+                    <h2>BUSINESS OVERVIEW</h2>
                     <span class="readout-id">OP.MODE // 01</span>
                 </div>
 
@@ -64,18 +64,34 @@
 
                 <div class="card-grid-2">
                     <div class="card">
-                        <h3>CROP_DISTRIBUTION.DAT</h3>
+                        <h3>CROP_DISTRIBUTION</h3>
                         <div class="chart-area" id="crop-distribution"></div>
                     </div>
                     <div class="card">
-                        <h3>CHANNEL_UTILIZATION.DAT</h3>
+                        <h3>CHANNEL_UTILIZATION</h3>
                         <div class="chart-area" id="channel-distribution"></div>
                     </div>
                 </div>
 
+                <div class="card-grid-2">
+                    <div class="card">
+                        <h3>TOP_CLUSTERS</h3>
+                        <div class="chart-area" id="top-segments"></div>
+                    </div>
+                    <div class="card">
+                        <h3>GEOGRAPHIC_DISPERSION</h3>
+                        <div class="chart-area" id="state-distribution"></div>
+                    </div>
+                </div>
+
                 <div class="card">
-                    <h3>GEOGRAPHIC_DISPERSION.MAP</h3>
-                    <div class="chart-area" id="state-distribution"></div>
+                    <h3>SEGMENT_ENGAGEMENT_RANKINGS</h3>
+                    <div class="chart-area" id="segment-engagement"></div>
+                </div>
+
+                <div class="card">
+                    <h3>OPTIMAL_SEND_TIMES</h3>
+                    <div class="chart-area" id="optimal-times"></div>
                 </div>
             </section>
 
@@ -86,36 +102,92 @@
                     <span class="readout-id">OP.MODE // 02</span>
                 </div>
 
-                <div class="filter-bar">
-                    <select id="seg-filter-crop" class="filter-select">
-                        <option value="">[ PARAM: ALL CROPS ]</option>
+                <div class="filter-bar" style="flex-wrap:wrap;gap:6px">
+                    <select id="seg-filter-crop" class="filter-select" style="font-size:9px;padding:4px 6px;max-width:140px">
+                        <option value="">[ ALL CROPS ]</option>
                     </select>
-                    <select id="seg-filter-state" class="filter-select">
-                        <option value="">[ PARAM: ALL STATES ]</option>
+                    <select id="seg-filter-stage" class="filter-select" style="font-size:9px;padding:4px 6px;max-width:120px">
+                        <option value="">[ ALL STAGES ]</option>
+                        <option value="sowing">SOWING</option>
+                        <option value="tillering">TILLERING</option>
+                        <option value="flowering">FLOWERING</option>
+                        <option value="harvested">HARVESTED</option>
                     </select>
-                    <button class="btn btn-primary" id="seg-load-btn">EXECUTE.FILTER</button>
+                    <select id="seg-filter-state" class="filter-select" style="font-size:9px;padding:4px 6px;max-width:130px">
+                        <option value="">[ ALL STATES ]</option>
+                    </select>
+                    <select id="seg-filter-language" class="filter-select" style="font-size:9px;padding:4px 6px;max-width:120px">
+                        <option value="">[ ALL LANG ]</option>
+                    </select>
+                    <select id="seg-filter-device" class="filter-select" style="font-size:9px;padding:4px 6px;max-width:110px">
+                        <option value="">[ ALL DEVICES ]</option>
+                        <option value="smartphone">SMARTPHONE</option>
+                        <option value="keypad">KEYPAD</option>
+                    </select>
+                    <button class="btn btn-primary" id="seg-load-btn" style="font-size:9px;padding:4px 10px">EXECUTE</button>
+                </div>
+
+                <div class="filter-bar" style="flex-wrap:wrap;gap:4px;border-top:none;padding-top:0;padding-bottom:8px">
+                    <span style="color:var(--text-dim);font-size:9px;white-space:nowrap">GROUP:</span>
+                    <label class="filter-check" style="display:flex;align-items:center;gap:2px;font-size:9px;color:var(--text-chalk);cursor:pointer">
+                        <input type="checkbox" class="gb-dim" value="crop" checked style="width:10px;height:10px"> CROP
+                    </label>
+                    <label class="filter-check" style="display:flex;align-items:center;gap:2px;font-size:9px;color:var(--text-chalk);cursor:pointer">
+                        <input type="checkbox" class="gb-dim" value="stage" checked style="width:10px;height:10px"> STAGE
+                    </label>
+                    <label class="filter-check" style="display:flex;align-items:center;gap:2px;font-size:9px;color:var(--text-chalk);cursor:pointer">
+                        <input type="checkbox" class="gb-dim" value="state" checked style="width:10px;height:10px"> STATE
+                    </label>
+                    <label class="filter-check" style="display:flex;align-items:center;gap:2px;font-size:9px;color:var(--text-chalk);cursor:pointer">
+                        <input type="checkbox" class="gb-dim" value="language" checked style="width:10px;height:10px"> LANG
+                    </label>
+                    <label class="filter-check" style="display:flex;align-items:center;gap:2px;font-size:9px;color:var(--text-chalk);cursor:pointer">
+                        <input type="checkbox" class="gb-dim" value="device_type" checked style="width:10px;height:10px"> DEVICE
+                    </label>
                 </div>
 
                 <div class="metrics-grid" id="segment-summary-metrics"></div>
 
                 <div class="table-wrapper">
                     <table class="data-table" id="segments-table">
-                        <thead>
+                        <thead id="segments-thead">
                             <tr>
                                 <th>CLUSTER.ID</th>
-                                <th>CROP</th>
-                                <th>STAGE</th>
-                                <th>STATE</th>
-                                <th>LANG</th>
-                                <th>DEV</th>
+                                <th class="th-dims" data-dim="crop">CROP</th>
+                                <th class="th-dims" data-dim="stage">STAGE</th>
+                                <th class="th-dims" data-dim="state">STATE</th>
+                                <th class="th-dims" data-dim="language">LANG</th>
+                                <th class="th-dims" data-dim="device_type">DEV</th>
                                 <th>POPULATION</th>
                                 <th>AVG.ACRES</th>
                                 <th>THREAT.VEC</th>
                                 <th>PAYLOAD</th>
+                                <th>ACTION</th>
                             </tr>
                         </thead>
                         <tbody id="segments-tbody"></tbody>
                     </table>
+                </div>
+
+                <!-- ─── Inline Segment Content Generation ─── -->
+                <div class="section-divider">
+                    <span>═══ CLUSTER.SYNTHESIS ═══</span>
+                </div>
+
+                <div class="card" id="seg-gen-panel" style="display:none;">
+                    <div class="filter-bar" style="margin-bottom:16px;">
+                        <span id="seg-gen-selected" style="color:var(--toxic-green);font-weight:700;font-size:11px;flex:1;"></span>
+                        <select id="seg-gen-format" class="filter-select">
+                            <option value="auto">MODE: AUTO</option>
+                            <option value="whatsapp">MODE: WHATSAPP</option>
+                            <option value="sms">MODE: SMS</option>
+                            <option value="voice_script">MODE: VOICE</option>
+                        </select>
+                        <button class="btn btn-primary" id="seg-gen-btn">GENERATE.CONTENT</button>
+                        <button class="btn" id="seg-gen-close" style="border-color:var(--text-dim);color:var(--text-dim);padding:12px 16px;">✕</button>
+                    </div>
+                    <div id="seg-gen-meta"></div>
+                    <div class="content-outputs" id="seg-gen-outputs"></div>
                 </div>
             </section>
 
@@ -175,40 +247,56 @@
                     <div class="content-header" id="content-meta"></div>
                     <div class="content-outputs" id="content-outputs"></div>
                 </div>
+
             </section>
 
             <!-- ─── [05] CONVERSION_LEDGER ─── -->
             <section class="tab-panel" id="panel-analytics">
                 <div class="readout-header">
-                    <h2>CONVERSION LEDGER</h2>
+                    <h2>CAMPAIGN PERFORMANCE</h2>
                     <span class="readout-id">OP.MODE // 05</span>
+                </div>
+
+                <div class="metrics-grid" id="campaign-metrics">
+                    <!-- Filled by JS -->
                 </div>
 
                 <div class="card-grid-2">
                     <div class="card">
-                        <h3>FUNNEL.WHATSAPP</h3>
+                        <h3>WHATSAPP_FUNNEL</h3>
                         <div id="wa-funnel"></div>
                     </div>
                     <div class="card">
-                        <h3>ATTRIBUTION.TIGHT (14D)</h3>
-                        <div id="conversion-attribution"></div>
+                        <h3>CONVERSION_BY_CROP</h3>
+                        <div id="conversion-by-crop"></div>
+                    </div>
+                </div>
+
+                <div class="card-grid-2">
+                    <div class="card">
+                        <h3>POS_SALES_TREND</h3>
+                        <div id="pos-trend"></div>
+                    </div>
+                    <div class="card">
+                        <h3>DIGITAL_CAMPAIGNS</h3>
+                        <div id="digital-campaigns"></div>
+                    </div>
+                </div>
+
+                <div class="card-grid-2">
+                    <div class="card">
+                        <h3>INVENTORY_HEALTH</h3>
+                        <div id="inventory-health"></div>
+                    </div>
+                    <div class="card">
+                        <h3>FIELD_ACTIVITY</h3>
+                        <div id="field-activity"></div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <h3>FUNNEL.DIGITAL</h3>
-                    <div id="digital-funnel"></div>
-                </div>
-
-                <div class="card-grid-2">
-                    <div class="card">
-                        <h3>SUPPLY.STATUS</h3>
-                        <div id="inventory-health"></div>
-                    </div>
-                    <div class="card">
-                        <h3>FIELD_OPS.LOG</h3>
-                        <div id="field-activity"></div>
-                    </div>
+                    <h3>CAMPAIGN_REVENUE_IMPACT</h3>
+                    <div id="revenue-impact"></div>
                 </div>
             </section>
 
@@ -233,6 +321,11 @@
                         <button class="btn btn-primary" id="model-predict-btn">EXECUTE.INFERENCE</button>
                     </div>
                     <div id="model-prediction"></div>
+                </div>
+
+                <div class="card" id="model-priority-card">
+                    <h3>GROWER_PRIORITIZATION</h3>
+                    <div id="grower-priority"></div>
                 </div>
             </section>
 

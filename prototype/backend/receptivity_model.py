@@ -4,6 +4,9 @@ Receptivity Model v7 (Production Stabilized)
 Trained strictly on provided campaign data.
 Applies robust Bayesian smoothing and explicit structural tree regularization 
 to guarantee smooth, non-zero continuous probability outputs.
+
+Batch ranking extension: can predict engagement for ALL growers in bulk
+and return a prioritized list for marketing budget allocation.
 """
 
 import pandas as pd
@@ -263,4 +266,94 @@ class ReceptivityModel:
             "open_probability": round(open_prob, 4),
             "click_probability": round(click_prob, 4),
             "engagement_tier": "high" if open_prob > 0.45 else "medium" if open_prob > 0.20 else "low",
+        }
+
+    def batch_predict_rankings(self, limit: int = 100) -> Dict[str, Any]:
+        """Predict engagement for ALL growers at once and return a ranked list."""
+        import json
+        if not self.is_trained:
+            self.train()
+
+        store = get_data_store()
+        growers = store.growers.copy()
+
+        rows = []
+        for _, g in growers.iterrows():
+            try:
+                cal = json.loads(g["grower_crop_calendar"])
+                crop = cal.get("crop", "unknown")
+            except (json.JSONDecodeError, TypeError):
+                crop = "unknown"
+
+            state = str(g.get("state", "unknown"))
+            persona = f"{state}_{crop}".replace(" ", "_").lower()
+            age = float(g.get("grower_age", 40))
+            farm_size = float(g.get("grower_farm_size", 2.0))
+
+            rows.append({
+                "grower_id": g["grower_id"],
+                "grower_age": age,
+                "grower_farm_size": farm_size,
+                "language": str(g.get("language", "Hindi")),
+                "device_type": str(g.get("device_type", "smartphone")),
+                "state": state,
+                "crop": crop,
+                "gender": str(g.get("gender", "male")),
+                "campaign_product": "",
+                "msg_day_of_week": datetime.now().weekday(),
+                "msg_month": datetime.now().month,
+                "days_since_sowing": 90.0,
+                "offline_attended": 1 if str(g.get("offline_campaign_attended", "")).strip().lower() == "true" else 0,
+                "has_scanned": 1 if str(g.get("product_scan", "")).strip().lower() == "true" else 0,
+                "grower_persona": persona,
+                "age_farm_ratio": farm_size / (age + 1),
+            })
+
+        df = pd.DataFrame(rows)
+        df = self._encode_features(df, fit=False)
+
+        # Vectorized open probability
+        X_open = df[self.feature_cols_open].values
+        open_probs = self.model_open.predict_proba(X_open)[:, 1]
+
+        # Vectorized click probability (cascaded with predicted open probs)
+        df["predicted_open_prob"] = open_probs
+        X_click = df[self.feature_cols_click].values
+        click_probs = self.model_click.predict_proba(X_click)[:, 1]
+
+        # Blend: engagement score weighs open more because click is rarer
+        engagement = 0.6 * open_probs + 0.4 * click_probs
+
+        df["engagement_score"] = engagement
+        df["click_prob"] = click_probs
+
+        df_sorted = df.sort_values("engagement_score", ascending=False)
+
+        ranked = []
+        for i, (_, row) in enumerate(df_sorted.head(limit).iterrows(), 1):
+            ranked.append({
+                "rank": i,
+                "grower_id": row["grower_id"],
+                "state": row["state"],
+                "crop": row["crop"],
+                "device_type": row["device_type"],
+                "language": row["language"],
+                "open_probability": round(float(row["predicted_open_prob"]), 4),
+                "click_probability": round(float(row["click_prob"]), 4),
+                "engagement_score": round(float(row["engagement_score"]), 4),
+            })
+
+        # Distribution summary for insights
+        scores = engagement
+        return {
+            "total_growers": len(df),
+            "ranked_growers": ranked,
+            "distribution": {
+                "min": round(float(scores.min()), 4),
+                "max": round(float(scores.max()), 4),
+                "mean": round(float(scores.mean()), 4),
+                "median": round(float(np.median(scores)), 4),
+                "p25": round(float(np.percentile(scores, 25)), 4),
+                "p75": round(float(np.percentile(scores, 75)), 4),
+            },
         }

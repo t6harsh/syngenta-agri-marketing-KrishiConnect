@@ -29,6 +29,7 @@ from backend.segmentation import SegmentationEngine
 from backend.content_engine import ContentEngine
 from backend.receptivity_model import ReceptivityModel
 from backend.analytics import AnalyticsEngine
+from backend.weather_triggers import WeatherTriggerEngine
 
 # ──────────────────────────────────────────────────────
 # App init
@@ -175,17 +176,26 @@ async def segment_summary():
 async def segment_list(
     crop: Optional[str] = None,
     state: Optional[str] = None,
+    stage: Optional[str] = None,
+    language: Optional[str] = None,
+    device_type: Optional[str] = None,
+    group_by: Optional[str] = None,
     limit: int = Query(default=50, le=500),
 ):
-    """List micro-segments with optional filtering."""
+    """List micro-segments with optional filtering and flexible grouping."""
     engine = get_segmentation()
     ref = date(2026, 2, 1)
-    segments = engine.build_segments(ref)
 
-    if crop:
-        segments = [s for s in segments if s["crop"] == crop]
-    if state:
-        segments = [s for s in segments if s["state"] == state]
+    filters = {}
+    if crop: filters["crop"] = crop
+    if state: filters["state"] = state
+    if stage: filters["stage"] = stage
+    if language: filters["language"] = language
+    if device_type: filters["device_type"] = device_type
+
+    group_dims = group_by.split(",") if group_by else None
+
+    segments = engine.build_segments_grouped(ref, group_by=group_dims, filters=filters)
 
     # Sort by grower count descending
     segments.sort(key=lambda s: s["grower_count"], reverse=True)
@@ -282,6 +292,87 @@ async def generate_content(
 
 
 # ──────────────────────────────────────────────────────
+# API: Segment Content Generation
+# ──────────────────────────────────────────────────────
+@app.get("/api/segments/{segment_id}/generate")
+async def generate_segment_content(
+    segment_id: str,
+    format: str = Query(default="auto", pattern="^(auto|whatsapp|sms|voice_script)$"),
+    group_by: str = Query(default="", description="Comma-separated dimensions used when building grouped segments"),
+):
+    """Generate marketing content and delivery plan targeting an entire farmer segment."""
+    seg = get_segmentation()
+    content_engine = get_content()
+    ref = date(2026, 2, 1)
+
+    # Find the segment by ID — use grouped method if group_by is provided
+    if group_by:
+        gb_dims = [d.strip() for d in group_by.split(",") if d.strip()]
+        grouped_segments = seg.build_segments_grouped(ref, group_by=gb_dims)
+        all_segments = grouped_segments
+    else:
+        all_segments = seg.build_segments(ref)
+    matched = [s for s in all_segments if s["segment_id"] == segment_id]
+    if not matched:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Segment '{segment_id}' not found. "
+                   f"Use /api/segments/list to see available segments.",
+        )
+
+    segment = matched[0]
+
+    # Build aggregated segment context
+    segment_ctx = seg.get_segment_context(segment, ref)
+
+    # Fetch weather triggers for the segment's primary crop/stage/region
+    weather_engine = WeatherTriggerEngine()
+    triggers = weather_engine.evaluate_triggers(
+        crop=segment_ctx.get("crop", ""),
+        stage=segment_ctx.get("current_stage", ""),
+        district=segment_ctx.get("tehsils", [""])[0] if segment_ctx.get("tehsils") else "",
+        ref_date=ref,
+    )
+
+    # Generate content targeting the segment
+    content_result = content_engine.generate_for_segment(
+        segment_ctx, format, weather_triggers=triggers
+    )
+
+    # Build segment delivery plan
+    from backend.orchestrator import CampaignOrchestrator
+
+    orch = CampaignOrchestrator()
+    plan = orch.build_segment_delivery_plan(segment_ctx)
+
+    # Combine response
+    result = {
+        "segment_id": segment_id,
+        "segment_details": {
+            "crop": segment.get("crop"),
+            "stage": segment.get("stage"),
+            "state": segment.get("state"),
+            "language": segment.get("language"),
+            "device_type": segment.get("device_type"),
+            "grower_count": segment.get("grower_count"),
+            "avg_farm_size": segment.get("avg_farm_size"),
+            "threat": segment.get("threat"),
+            "tehsils": segment.get("tehsils"),
+        },
+        "language": content_result["language"],
+        "channel": plan["primary_channel"],
+        "product_recommended": content_result["product_recommended"],
+        "reach": content_result["reach"],
+        "generation_method": content_result["generation_method"],
+        "weather_triggers": content_result.get("weather_triggers", []),
+        "delivery_plan": plan,
+        "content": content_result.get("content", {}),
+        "guardrail_check": content_result.get("guardrail_check", {}),
+    }
+    return result
+
+
+# ──────────────────────────────────────────────────────
 # API: Analytics
 # ──────────────────────────────────────────────────────
 @app.get("/api/analytics/whatsapp")
@@ -323,6 +414,30 @@ async def analytics_field_activity():
     return get_analytics().get_field_activity_summary()
 
 
+@app.get("/api/analytics/business-overview")
+async def analytics_business_overview():
+    """High-level business KPIs for the main dashboard."""
+    return get_analytics().get_business_overview()
+
+
+@app.get("/api/analytics/revenue-impact")
+async def analytics_revenue_impact():
+    """Campaign revenue impact by comparing POS sales before/after campaigns."""
+    return get_analytics().get_campaign_revenue_impact()
+
+
+@app.get("/api/analytics/segment-engagement")
+async def analytics_segment_engagement():
+    """Rank crop×stage×state segments by WhatsApp engagement score."""
+    return get_analytics().get_segment_engagement()
+
+
+@app.get("/api/analytics/optimal-send-times")
+async def analytics_optimal_send_times():
+    """Find best day-of-week per segment based on historical open rates."""
+    return get_analytics().get_optimal_send_times()
+
+
 # ──────────────────────────────────────────────────────
 # API: Receptivity Model Info
 # ──────────────────────────────────────────────────────
@@ -333,6 +448,13 @@ async def model_info():
     if not model.is_trained:
         model.train()
     return model.training_metrics
+
+
+@app.get("/api/model/grower-prioritization")
+async def model_grower_prioritization(limit: int = Query(default=100, le=500)):
+    """Rank all growers by predicted engagement score for budget prioritization."""
+    model = get_receptivity()
+    return model.batch_predict_rankings(limit=limit)
 
 # ── 1. Define the Schema ──
 class RLHFFeedback(BaseModel):

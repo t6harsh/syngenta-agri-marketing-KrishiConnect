@@ -500,8 +500,8 @@ body::before {
 
 .bar-row {
     display: grid;
-    grid-template-columns: 140px 1fr;
-    gap: 24px;
+    grid-template-columns: 130px 1fr;
+    gap: 16px;
     align-items: center;
     margin-bottom: 12px;
 }
@@ -510,10 +510,14 @@ body::before {
     text-align: right;
     font-size: 11px;
     color: var(--text-dim);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 26px;
 }
 
 .bar-track {
-    height: 16px;
+    height: 26px;
     background: var(--bg-highlight);
     border: 1px solid var(--grid-line);
     position: relative;
@@ -523,12 +527,18 @@ body::before {
     height: 100%;
     display: flex;
     align-items: center;
-    padding-left: 8px;
-    font-size: 10px;
-    color: var(--bg-base);
-    font-weight: 700;
+    justify-content: flex-end;
+    padding: 0 6px;
+    min-width: 0;
+}
+
+.bar-value {
+    font-size: 12px;
+    font-weight: 800;
+    color: var(--text-dark);
     white-space: nowrap;
-    overflow: visible;
+    flex-shrink: 0;
+    letter-spacing: 0.5px;
 }
 
 .bar-fill.green {
@@ -777,6 +787,85 @@ body::before {
     text-align: right;
 }
 
+/* ─── Section Divider ─── */
+.section-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 48px 0 24px;
+    color: var(--text-dim);
+    font-size: 12px;
+    letter-spacing: 2px;
+}
+
+.section-divider::before,
+.section-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--grid-line);
+}
+
+/* ─── Segment Generate Button ─── */
+.btn-generate-seg {
+    background: transparent;
+    border: 1px solid var(--toxic-green);
+    color: var(--toxic-green);
+    padding: 4px 12px;
+    font-family: var(--font-data);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: var(--transition-fast);
+    white-space: nowrap;
+}
+
+.btn-generate-seg:hover {
+    background: var(--toxic-green);
+    color: var(--text-dark);
+}
+
+.seg-action-cell {
+    display: flex;
+    gap: 4px;
+    align-items: center;
+}
+
+/* ─── Table Selected Row ─── */
+.data-table tbody tr.row-selected {
+    background: var(--toxic-green-dim);
+    outline: 1px solid var(--toxic-green);
+    outline-offset: -1px;
+}
+
+.data-table tbody tr.row-selected td {
+    color: var(--toxic-green);
+}
+
+/* ─── CLUSTER.ID full visibility ─── */
+.data-table th:first-child,
+.data-table td:first-child {
+    max-width: 200px;
+    min-width: 120px;
+}
+
+.data-table td:first-child span {
+    display: inline-block;
+    word-break: break-all;
+    font-size: 10px;
+    line-height: 1.4;
+}
+
+/* ─── Seg gen panel inside segments tab ─── */
+#seg-gen-panel .filter-bar {
+    margin-bottom: 16px;
+}
+
+#seg-gen-panel .content-outputs {
+    margin-top: 16px;
+}
+
 /* ─── Loading ─── */
 .loading-spinner {
     padding: 40px;
@@ -787,4 +876,12 @@ body::before {
 
 .loading-spinner::before {
     content: 'PROCESSING... ';
+}
+
+/* ─── Collapse/Expand Cards ─── */
+.card.collapsed {
+    padding-bottom: 16px;
+}
+.card.collapsed > *:not(h3) {
+    display: none;
 }
