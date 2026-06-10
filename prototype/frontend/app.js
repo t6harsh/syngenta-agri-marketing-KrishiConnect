@@ -124,9 +124,7 @@ async function renderDashboard(d) {
         }
 
         // Summary metrics for TARGET_CLUSTERS tab
-        $('segment-summary-metrics').innerHTML =
-            metricCard('Total Segments', biz.total_segments, 'Unique micro-segments', 'green') +
-            metricCard('Total Growers', fmt(biz.total_growers), 'Across all segments', 'blue');
+        $('segment-summary-metrics').innerHTML = '';
     } catch (e) {
         console.error('Dashboard render error:', e);
     }
