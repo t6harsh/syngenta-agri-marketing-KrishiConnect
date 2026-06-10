@@ -11,6 +11,10 @@ import sys
 from datetime import date
 from typing import Optional
 
+from dotenv import load_dotenv
+
+load_dotenv(os.path.join(os.path.dirname(__file__), ".env"))
+
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime
@@ -235,12 +239,48 @@ async def grower_receptivity(grower_id: str):
 
 
 # ──────────────────────────────────────────────────────
+# API: Visual / Video Generation (Standalone, must be before {grower_id} route)
+# ──────────────────────────────────────────────────────
+@app.get("/api/generate/visual")
+async def generate_visual_prompt(
+    crop: str = Query(...),
+    stage: str = Query(...),
+    threat: str = Query(...),
+    product: str = Query(...),
+    state: str = Query(...),
+    language: str = Query("Hindi"),
+):
+    """Generate a visual concept prompt for ad creatives."""
+    content_engine = get_content()
+    ctx = {"crop": crop, "stage": stage, "threat": threat, "product": product, "state": state, "language": language}
+    prompt = content_engine._generate_segment_visual_prompt(ctx)
+    return {"visual_prompt": prompt}
+
+
+@app.get("/api/generate/video")
+async def generate_video_storyboard(
+    crop: str = Query(...),
+    stage: str = Query(...),
+    threat: str = Query(...),
+    product: str = Query(...),
+    state: str = Query(...),
+    language: str = Query("Hindi"),
+    grower_count: int = Query(0),
+):
+    """Generate a video storyboard for campaign video production."""
+    content_engine = get_content()
+    ctx = {"crop": crop, "stage": stage, "threat": threat, "product": product, "state": state, "language": language, "grower_count": grower_count}
+    storyboard = content_engine._generate_segment_video_storyboard(ctx)
+    return {"video_storyboard": storyboard}
+
+
+# ──────────────────────────────────────────────────────
 # API: Content Generation
 # ──────────────────────────────────────────────────────
 @app.get("/api/generate/{grower_id}")
 async def generate_content(
     grower_id: str,
-    format: str = Query(default="auto", pattern="^(auto|whatsapp|sms|voice_script)$"),
+    format: str = Query(default="auto", pattern="^(auto|all|whatsapp|sms|voice_script)$"),
 ):
     """Generate personalized marketing content and delivery plan for a grower."""
     seg = get_segmentation()
@@ -278,6 +318,10 @@ async def generate_content(
     # Combine response
     result = {
         "grower_id": grower_id,
+        "crop": ctx.get("crop", ""),
+        "stage": ctx.get("current_stage", ""),
+        "state": ctx.get("state", ""),
+        "threat": ctx.get("threat", ""),
         "language": content_result["language"],
         "channel": plan["primary_channel"],
         "product_recommended": content_result["product_recommended"],
@@ -297,7 +341,7 @@ async def generate_content(
 @app.get("/api/segments/{segment_id}/generate")
 async def generate_segment_content(
     segment_id: str,
-    format: str = Query(default="auto", pattern="^(auto|whatsapp|sms|voice_script)$"),
+    format: str = Query(default="auto", pattern="^(auto|all|whatsapp|sms|voice_script)$"),
     group_by: str = Query(default="", description="Comma-separated dimensions used when building grouped segments"),
 ):
     """Generate marketing content and delivery plan targeting an entire farmer segment."""
@@ -305,13 +349,12 @@ async def generate_segment_content(
     content_engine = get_content()
     ref = date(2026, 2, 1)
 
-    # Find the segment by ID — use grouped method if group_by is provided
+    # Find the segment by ID — use grouped method consistently to match /api/segments/list
     if group_by:
         gb_dims = [d.strip() for d in group_by.split(",") if d.strip()]
-        grouped_segments = seg.build_segments_grouped(ref, group_by=gb_dims)
-        all_segments = grouped_segments
+        all_segments = seg.build_segments_grouped(ref, group_by=gb_dims)
     else:
-        all_segments = seg.build_segments(ref)
+        all_segments = seg.build_segments_grouped(ref)
     matched = [s for s in all_segments if s["segment_id"] == segment_id]
     if not matched:
         raise HTTPException(
@@ -348,6 +391,10 @@ async def generate_segment_content(
     # Combine response
     result = {
         "segment_id": segment_id,
+        "crop": segment.get("crop", ""),
+        "stage": segment.get("stage", ""),
+        "state": segment.get("state", ""),
+        "threat": segment.get("threat", ""),
         "segment_details": {
             "crop": segment.get("crop"),
             "stage": segment.get("stage"),

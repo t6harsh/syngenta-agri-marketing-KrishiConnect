@@ -45,6 +45,16 @@ async function api(path) {
     return r.json();
 }
 
+function renderStoryboard(sb) {
+    if (!sb || !sb.length) return 'No storyboard available.';
+    return sb.map(scene =>
+        `<div style="margin-bottom:8px;border-bottom:1px solid var(--border-color);padding-bottom:4px;">
+            <b>Scene ${scene.scene} (${scene.duration_sec}s):</b> ${scene.visual}
+            <br/><i style="color:var(--text-muted)">Voice: "${scene.narration_en}"</i>
+        </div>`
+    ).join('');
+}
+
 // ─── Boot ───
 async function boot() {
     try {
@@ -441,17 +451,34 @@ $('content-generate-btn').addEventListener('click', async () => {
             html += `</div>`;
         }
 
-        // Visual Concepts & Video Layout
-        if (content.visual_prompt) {
-            html += `<div class="content-block"><div class="content-block-label">🎨 Visual Concept Prompt (For Image AI)</div><div class="content-block-text" style="font-family:monospace; font-size:11px; background:var(--bg-dark); padding:8px;">${content.visual_prompt}</div></div>`;
-        }
-        if (content.video_storyboard) {
-            html += `<div class="content-block"><div class="content-block-label">🎬 Video Storyboard (For Low-Literacy Segments)</div><div class="content-block-text" style="font-size:12px;">`;
-            content.video_storyboard.forEach(scene => {
-                html += `<div style="margin-bottom:8px; border-bottom:1px solid var(--border-color); padding-bottom:4px;"><b>Scene ${scene.scene} (${scene.duration_sec}s):</b> ${scene.visual}<br/><i style="color:var(--text-muted)">Voice: "${scene.narration_en}"</i></div>`;
-            });
-            html += `</div></div>`;
-        }
+        // Visual & Video with dedicated generate buttons
+        html += `<div class="content-block visual-block">
+            <div class="content-block-label">🎨 Visual Concept Prompt (For Image AI)</div>
+            <div style="margin-bottom:8px;">
+                <button class="btn btn-primary gen-visual-btn"
+                    data-crop="${result.crop||''}" data-stage="${result.stage||''}"
+                    data-threat="${result.threat||''}" data-product="${result.product_recommended||''}"
+                    data-state="${result.state||''}" data-language="${result.language||''}"
+                    data-target="content-outputs" style="font-size:10px;padding:4px 10px;">GENERATE VISUAL</button>
+            </div>
+            <div class="visual-display content-block-text" style="font-family:monospace;font-size:11px;background:var(--bg-dark);padding:8px;">
+                ${content.visual_prompt || 'Click GENERATE VISUAL to create a visual concept prompt.'}
+            </div>
+        </div>`;
+        html += `<div class="content-block video-block">
+            <div class="content-block-label">🎬 Video Storyboard (For Low-Literacy Segments)</div>
+            <div style="margin-bottom:8px;">
+                <button class="btn btn-primary gen-video-btn"
+                    data-crop="${result.crop||''}" data-stage="${result.stage||''}"
+                    data-threat="${result.threat||''}" data-product="${result.product_recommended||''}"
+                    data-state="${result.state||''}" data-language="${result.language||''}"
+                    data-grower-count="${result.reach||0}"
+                    data-target="content-outputs" style="font-size:10px;padding:4px 10px;">GENERATE VIDEO</button>
+            </div>
+            <div class="video-display content-block-text" style="font-size:12px;">
+                ${content.video_storyboard ? renderStoryboard(content.video_storyboard) : 'Click GENERATE VIDEO to create a video storyboard.'}
+            </div>
+        </div>`;
 
         // ─── Human-in-the-Loop (RLHF) Panel ───
         if (html !== '') {
@@ -543,17 +570,34 @@ $('seg-gen-btn').addEventListener('click', async () => {
             html += `</div>`;
         }
 
-        // Visual & video
-        if (content.visual_prompt) {
-            html += `<div class="content-block"><div class="content-block-label">🎨 Visual Prompt</div><div class="content-block-text" style="font-family:monospace;font-size:11px;background:var(--bg-dark);padding:8px;">${content.visual_prompt}</div></div>`;
-        }
-        if (content.video_storyboard) {
-            html += `<div class="content-block"><div class="content-block-label">🎬 Video Storyboard</div><div class="content-block-text" style="font-size:12px;">`;
-            content.video_storyboard.forEach(scene => {
-                html += `<div style="margin-bottom:8px;border-bottom:1px solid var(--border-color);padding-bottom:4px;"><b>Scene ${scene.scene} (${scene.duration_sec}s):</b> ${scene.visual}<br/><i style="color:var(--text-muted)">Narration: "${scene.narration_en}"</i></div>`;
-            });
-            html += `</div></div>`;
-        }
+        // Visual & Video with dedicated generate buttons
+        html += `<div class="content-block visual-block">
+            <div class="content-block-label">🎨 Visual Prompt</div>
+            <div style="margin-bottom:8px;">
+                <button class="btn btn-primary gen-visual-btn"
+                    data-crop="${result.crop||''}" data-stage="${result.stage||''}"
+                    data-threat="${result.threat||''}" data-product="${result.product_recommended||''}"
+                    data-state="${result.state||''}" data-language="${result.language||''}"
+                    data-target="seg-gen-outputs" style="font-size:10px;padding:4px 10px;">GENERATE VISUAL</button>
+            </div>
+            <div class="visual-display content-block-text" style="font-family:monospace;font-size:11px;background:var(--bg-dark);padding:8px;">
+                ${content.visual_prompt || 'Click GENERATE VISUAL to create a visual concept prompt.'}
+            </div>
+        </div>`;
+        html += `<div class="content-block video-block">
+            <div class="content-block-label">🎬 Video Storyboard</div>
+            <div style="margin-bottom:8px;">
+                <button class="btn btn-primary gen-video-btn"
+                    data-crop="${result.crop||''}" data-stage="${result.stage||''}"
+                    data-threat="${result.threat||''}" data-product="${result.product_recommended||''}"
+                    data-state="${result.state||''}" data-language="${result.language||''}"
+                    data-grower-count="${result.reach||0}"
+                    data-target="seg-gen-outputs" style="font-size:10px;padding:4px 10px;">GENERATE VIDEO</button>
+            </div>
+            <div class="video-display content-block-text" style="font-size:12px;">
+                ${content.video_storyboard ? renderStoryboard(content.video_storyboard) : 'Click GENERATE VIDEO to create a video storyboard.'}
+            </div>
+        </div>`;
         // RLHF
         if (html !== '') {
             window.lastSegmentPayload = content;
@@ -579,6 +623,36 @@ $('seg-gen-btn').addEventListener('click', async () => {
 $('seg-gen-close').addEventListener('click', () => {
     $('seg-gen-panel').style.display = 'none';
     document.querySelectorAll('#segments-tbody tr').forEach(r => r.classList.remove('row-selected'));
+});
+
+// ─── Visual / Video Generation Buttons (delegated) ───
+document.addEventListener('click', async e => {
+    const btn = e.target.closest('.gen-visual-btn, .gen-video-btn');
+    if (!btn) return;
+    e.preventDefault();
+    const isVideo = btn.classList.contains('gen-video-btn');
+    const block = btn.closest('.visual-block, .video-block');
+    const display = block.querySelector(isVideo ? '.video-display' : '.visual-display');
+    display.innerHTML = '<div class="loading-spinner" style="padding:4px 0;">Generating…</div>';
+
+    const params = new URLSearchParams({
+        crop: btn.dataset.crop || '', stage: btn.dataset.stage || '',
+        threat: btn.dataset.threat || '', product: btn.dataset.product || '',
+        state: btn.dataset.state || '', language: btn.dataset.language || '',
+    });
+    if (isVideo) params.set('grower_count', btn.dataset.growerCount || '0');
+
+    try {
+        const type = isVideo ? 'video' : 'visual';
+        const res = await api(`/api/generate/${type}?${params}`);
+        if (isVideo) {
+            display.innerHTML = res.video_storyboard ? renderStoryboard(res.video_storyboard) : 'No storyboard generated.';
+        } else {
+            display.innerHTML = res.visual_prompt || 'No visual prompt generated.';
+        }
+    } catch (err) {
+        display.innerHTML = `<span style="color:var(--accent-red)">Error: ${err.message}</span>`;
+    }
 });
 
 // ─── Analytics ───

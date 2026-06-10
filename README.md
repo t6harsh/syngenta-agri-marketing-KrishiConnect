@@ -38,7 +38,7 @@ The orchestrator ensures we don't spam unengaged farmers.
 * **Optimal Send Times:** Schedules messages based on agrarian daily routines (e.g., 06:30 - 08:00 AM).
 
 ### 4. Multi-Modal Content Engine & Vernacular Audio Synthesis
-Powered by **Google Gemini 2.0 Flash**, the content engine produces highly localized vernacular copy. For lower-literacy segments, text outputs are expanded via programmatic multi-modal asset synthesis:
+Powered by **GROQ**, the content engine produces highly localized vernacular copy. For lower-literacy segments, text outputs are expanded via programmatic multi-modal asset synthesis:
 * **Live Audio Synthesis (`gTTS`):** Converts generated native scripts (e.g., Gujarati, Hindi) into voice recordings in real time. These files are seamlessly encoded as a Base64 data URI string for zero-latency playback using standard frontend HTML5 `<audio>` tags.
 * **Visual Concepts:** High-fidelity prompts ready to be fed into DALL-E or Stable Diffusion.
 * **Video Storyboards:** 30-second, 5-scene narrative scripts with visual cues and translated voice-over narrations designed for short-form video formats.
@@ -66,7 +66,7 @@ We actively rejected the "generic AI dashboard slop" aesthetic. The frontend is 
 * **Backend:** Python 3.10+, FastAPI, Uvicorn
 * **Machine Learning:** Scikit-Learn (`HistGradientBoostingClassifier`), Pandas, NumPy
 * **Audio Pipeline:** `gTTS` (Google Text-to-Speech Engine), Base64 MP3 encoding
-* **AI Integration:** `google-generativeai` (Gemini 2.0 Flash)
+* **AI Integration:** `llama-3.1-8b-instant` (Groq)
 * **External APIs:** Open-Meteo (Real-time weather)
 * **Frontend:** Vanilla JS, HTML5 Audio API, Custom CSS Grid Design System
 * **Data Source:** Custom synthetic `Syngenta_IITM_Hackathon_2026_dataset` representing the 2025-26 Rabi Season.
@@ -77,7 +77,7 @@ We actively rejected the "generic AI dashboard slop" aesthetic. The frontend is 
 
 ### Prerequisites
 1. Python 3.9 or higher.
-2. An active Google Gemini API Key.
+2. An active Groq API Key.
 
 ### Installation
 
@@ -121,12 +121,12 @@ We actively rejected the "generic AI dashboard slop" aesthetic. The frontend is 
    ```
 
 4. **Set your API Key:**
-   Export your Gemini API key to your environment variables.
+   Export your Groq API key to your environment variables.
 
    *(Note: If the key is missing, the backend will gracefully fall back to hardcoded template responses so the application won't crash).*
 
    ```bash
-   export GEMINI_API_KEY="your_api_key_here"
+   export GROQ_API_KEY="your_api_key_here"
    ```
    
 

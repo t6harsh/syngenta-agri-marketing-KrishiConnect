@@ -2,7 +2,7 @@
 Content Generation Engine
 ==========================
 Generates hyper-personalized, context-aware marketing content using
-real grower context. Uses Google Gemini API for generation, with fallback
+real grower context. Uses Groq API (LLaMA) for generation, with fallback
 to template-based generation when API is unavailable.
 
 All context injected into prompts is REAL data from the datasets.
@@ -14,15 +14,7 @@ from typing import Dict, Any, Optional
 from gtts import gTTS
 import base64
 import io
-
-# Try to import Gemini
-try:
-    import google.generativeai as genai
-
-    GEMINI_AVAILABLE = True
-except ImportError:
-    GEMINI_AVAILABLE = False
-
+import json
 
 # ──────────────────────────────────────────────────────
 # Vernacular Templates (fallback when no API key)
@@ -112,34 +104,31 @@ Rules:
 import os
 from typing import Dict, Any, Optional
 
-# Try to import Gemini
 try:
-    import google.generativeai as genai
-
-    GEMINI_AVAILABLE = True
+    from groq import Groq
+    GROQ_AVAILABLE = True
 except ImportError:
-    GEMINI_AVAILABLE = False
+    GROQ_AVAILABLE = False
 
 
 class ContentEngine:
     """Generates personalized marketing content from real grower context."""
 
-    def __init__(self, gemini_api_key: str = None):
-        self.api_key = gemini_api_key or os.environ.get("GEMINI_API_KEY", "")
-        self.gemini_model = None
+    def __init__(self, groq_api_key: str = None):
+        self.api_key = groq_api_key or os.environ.get("GROQ_API_KEY", "")
+        self.groq_client = None
 
-        if self.api_key and GEMINI_AVAILABLE:
+        if self.api_key and GROQ_AVAILABLE:
             try:
-                genai.configure(api_key=self.api_key)
-                self.gemini_model = genai.GenerativeModel("gemini-2.0-flash")
-                print("[ContentEngine] Gemini API configured successfully.")
+                self.groq_client = Groq(api_key=self.api_key)
+                print("[ContentEngine] Groq API configured successfully.")
             except Exception as e:
                 print(
-                    f"[ContentEngine] Gemini init failed: {e}. Falling back to templates."
+                    f"[ContentEngine] Groq init failed: {e}. Falling back to templates."
                 )
-                self.gemini_model = None
+                self.groq_client = None
         else:
-            print("[ContentEngine] No Gemini API key. Using template-based generation.")
+            print("[ContentEngine] No Groq API key. Using template-based generation.")
 
     def generate(
         self,
@@ -216,40 +205,29 @@ class ContentEngine:
             "weather_triggers": weather_triggers or [],
         }
 
-        if self.gemini_model:
-            result["generation_method"] = "gemini"
-            try:
-                result["content"] = self._generate_with_gemini(
-                    context_vars, format_type
-                )
-            except Exception as e:
-                print(f"[ContentEngine] Gemini generation failed: {e}. Falling back.")
-                result["generation_method"] = "template"
-                result["content"] = self._generate_from_template(
-                    context_vars, format_type
-                )
-        else:
-            result["content"] = self._generate_from_template(context_vars, format_type)
-
-        # ── Add Visual Concept Prompt ──
-        result["content"]["visual_prompt"] = self._generate_visual_prompt(context_vars)
+        # Generate content for requested format(s)
+        formats_to_gen = ["whatsapp", "sms", "voice_script"] if format_type == "all" else [format_type]
+        content = {}
+        for fmt in formats_to_gen:
+            if self.groq_client:
+                try:
+                    part = self._generate_with_groq(context_vars, fmt)
+                    result["generation_method"] = "groq"
+                except Exception as e:
+                    print(f"[ContentEngine] Groq {fmt} failed: {e}. Falling back.")
+                    part = self._generate_from_template(context_vars, fmt)
+            else:
+                part = self._generate_from_template(context_vars, fmt)
+            content.update(part)
+        result["content"] = content
 
         # HACKATHON DAY PATCH: Inject a dynamic placeholder image URL based on crop/threat
-        # so the frontend has something real to render during the demo.
         threat_lower = context_vars["threat"].lower()
         if "blight" in threat_lower or "rust" in threat_lower or "wilt" in threat_lower:
-            # Show a diseased crop image for active threats
             demo_image = "https://images.unsplash.com/photo-1592843997784-07e33dc3a105?q=80&w=400&auto=format&fit=crop"
         else:
-            # Show a general healthy crop image
             demo_image = "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?q=80&w=400&auto=format&fit=crop"
-
         result["content"]["generated_image_url"] = demo_image
-
-        # ── Add Video Storyboard ──
-        result["content"]["video_storyboard"] = self._generate_video_storyboard(
-            context_vars
-        )
 
         # ── Run Content Guardrails ──
         from backend.orchestrator import CampaignOrchestrator
@@ -258,16 +236,16 @@ class ContentEngine:
         result["guardrail_check"] = orch.validate_content(
             result["content"], best_product
         )
-        
-        # ── Add Audio Synthesis (NEW CODE GOES HERE) ──
+
+        # ── Add Audio Synthesis ──
         voice_script = result.get("content", {}).get("voice_script", "")
         if not voice_script and "voice_call script" in result.get("content", {}):
-            voice_script = result["content"]["voice_call script"] # fallback key mapping
-            
+            voice_script = result["content"]["voice_call script"]
+
         if voice_script:
             print("[ContentEngine] Synthesizing audio...")
             result["content"]["voice_audio_base64"] = self._generate_audio(
-                voice_script, 
+                voice_script,
                 context_vars["language"]
             )
 
@@ -275,8 +253,8 @@ class ContentEngine:
     
         
 
-    def _generate_with_gemini(self, ctx: Dict, format_type: str) -> Dict[str, str]:
-        """Generate content using Gemini API."""
+    def _generate_with_groq(self, ctx: Dict, format_type: str) -> Dict[str, str]:
+        """Generate content using Groq API."""
         user_prompt = f"""Generate a {format_type} marketing message with these EXACT parameters:
 - Crop: {ctx['crop']}
 - Current Stage: {ctx['stage']}
@@ -292,15 +270,14 @@ Format your response as:
 ORIGINAL: <message in target language>
 ENGLISH: <english translation>
 """
-        response = self.gemini_model.generate_content(
-            [
-                {
-                    "role": "user",
-                    "parts": [{"text": SYSTEM_PROMPT + "\n\n" + user_prompt}],
-                }
-            ]
+        response = self.groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
         )
-        text = response.text.strip()
+        text = response.choices[0].message.content.strip()
 
         # Parse response
         original = text
@@ -319,19 +296,88 @@ ENGLISH: <english translation>
         """Generate content using pre-built vernacular templates."""
         lang = ctx["language"]
         templates = TEMPLATES.get(lang, TEMPLATES["Hindi"])
+        if format_type == "all":
+            result = {}
+            for fmt in ["whatsapp", "sms", "voice_script"]:
+                t = templates.get(fmt, "")
+                result[fmt] = t.format(**ctx) if t else ""
+            return result
+        template = templates.get(format_type, "")
+        return {format_type: template.format(**ctx) if template else ""}
 
-        result = {}
-        for fmt in ["whatsapp", "sms", "voice_script"]:
-            template = templates.get(fmt, "")
-            result[fmt] = template.format(**ctx) if template else ""
+    def _generate_visual_with_groq(self, ctx: Dict) -> str:
+        """Generate visual concept prompt using Groq API."""
+        prompt = f"""Create a detailed image prompt for an agricultural marketing infographic with these parameters:
+- Crop: {ctx['crop']}
+- Stage: {ctx['stage']}
+- Threat: {ctx['threat']}
+- Product: {ctx['product']}
+- Language: {ctx['language']}
+- Region: {ctx.get('district', '')}, {ctx.get('state', '')}
 
-        return result
+Requirements:
+- Professional clean design, Syngenta green brand colors
+- Split layout showing threat damage on left, healthy crop after treatment on right
+- Product packaging prominently displayed in center
+- Text overlay in {ctx['language']} language with product name and call-to-action
+- Photorealistic crop imagery with flat-design infographic elements
+- High contrast for mobile viewing, 1:1 square aspect ratio
+- Suitable for feeding to DALL-E, Stable Diffusion, or Imagen
+
+Return ONLY the image prompt text, no other commentary."""
+        response = self.groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        return response.choices[0].message.content.strip()
+
+    def _generate_video_with_groq(self, ctx: Dict) -> list:
+        """Generate video storyboard using Groq API."""
+        prompt = f"""Generate a 30-second video storyboard as a JSON array for an agricultural marketing video with these parameters:
+- Crop: {ctx['crop']}
+- Stage: {ctx['stage']}
+- Threat: {ctx['threat']}
+- Product: {ctx['product']}
+- Language: {ctx['language']}
+- Region: {ctx.get('district', '')}, {ctx.get('state', '')}
+
+Each scene must have these keys: "scene" (number), "duration_sec" (number), "visual" (string), "narration_lang" (string in {ctx['language']}), "narration_en" (string), "text_overlay" (string).
+
+Create 5 scenes:
+1. Wide shot establishing the region and crop, showing the threat
+2. Close-up of threat symptoms with warning overlay
+3. Product demonstration and application
+4. Before/after comparison showing treatment results
+5. Branding with call-to-action and dealer information
+
+Return ONLY valid JSON, no other text."""
+        response = self.groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+        )
+        text = response.choices[0].message.content.strip()
+        text = text.replace("```json", "").replace("```", "").strip()
+        return json.loads(text)
 
     def _generate_visual_prompt(self, ctx: Dict) -> str:
-        """
-        Generate a detailed image prompt for WhatsApp flyer / social media visual.
-        Designed to be fed to Imagen, DALL-E, or Stable Diffusion.
-        """
+        """Generate a visual concept prompt — Groq first, template fallback."""
+        if self.groq_client:
+            try:
+                return self._generate_visual_with_groq(ctx)
+            except Exception as e:
+                print(f"[ContentEngine] Groq visual prompt failed: {e}. Falling back.")
+        return self._generate_visual_prompt_template(ctx)
+
+    def _generate_video_storyboard(self, ctx: Dict) -> list:
+        """Generate a video storyboard — Groq first, template fallback."""
+        if self.groq_client:
+            try:
+                return self._generate_video_with_groq(ctx)
+            except Exception as e:
+                print(f"[ContentEngine] Groq video storyboard failed: {e}. Falling back.")
+        return self._generate_video_storyboard_template(ctx)
+
+    def _generate_visual_prompt_template(self, ctx: Dict) -> str:
         lang_script = {
             "Hindi": "Devanagari script",
             "Punjabi": "Gurmukhi script",
@@ -355,11 +401,7 @@ ENGLISH: <english translation>
             f"mobile viewing. Aspect ratio: 1:1 square for WhatsApp status / social media."
         )
 
-    def _generate_video_storyboard(self, ctx: Dict) -> list:
-        """
-        Generate a 30-second video storyboard for IVR visual or social media.
-        Designed for low-literacy audiences: heavy on visuals, simple narration.
-        """
+    def _generate_video_storyboard_template(self, ctx: Dict) -> list:
         return [
             {
                 "scene": 1,
@@ -484,26 +526,20 @@ ENGLISH: <english translation>
             "weather_triggers": weather_triggers or [],
         }
 
-        if self.gemini_model:
-            result["generation_method"] = "gemini"
-            try:
-                result["content"] = self._generate_segment_with_gemini(
-                    context_vars, format_type
-                )
-            except Exception as e:
-                print(f"[ContentEngine] Gemini segment generation failed: {e}. Falling back.")
-                result["generation_method"] = "template"
-                result["content"] = self._generate_from_segment_template(
-                    context_vars, format_type
-                )
-        else:
-            result["content"] = self._generate_from_segment_template(
-                context_vars, format_type
-            )
-
-        result["content"]["visual_prompt"] = self._generate_segment_visual_prompt(
-            context_vars
-        )
+        formats_to_gen = ["whatsapp", "sms", "voice_script"] if format_type == "all" else [format_type]
+        content = {}
+        for fmt in formats_to_gen:
+            if self.groq_client:
+                try:
+                    part = self._generate_segment_with_groq(context_vars, fmt)
+                    result["generation_method"] = "groq"
+                except Exception as e:
+                    print(f"[ContentEngine] Groq segment {fmt} failed: {e}. Falling back.")
+                    part = self._generate_from_segment_template(context_vars, fmt)
+            else:
+                part = self._generate_from_segment_template(context_vars, fmt)
+            content.update(part)
+        result["content"] = content
 
         threat_lower = context_vars["threat"].lower()
         if "blight" in threat_lower or "rust" in threat_lower or "wilt" in threat_lower:
@@ -511,10 +547,6 @@ ENGLISH: <english translation>
         else:
             demo_image = "https://images.unsplash.com/photo-1625246333195-78d9c38ad449?q=80&w=400&auto=format&fit=crop"
         result["content"]["generated_image_url"] = demo_image
-
-        result["content"]["video_storyboard"] = self._generate_segment_video_storyboard(
-            context_vars
-        )
 
         from backend.orchestrator import CampaignOrchestrator
         orch = CampaignOrchestrator()
@@ -535,8 +567,8 @@ ENGLISH: <english translation>
 
         return result
 
-    def _generate_segment_with_gemini(self, ctx: Dict, format_type: str) -> Dict[str, str]:
-        """Generate segment-targeted content using Gemini API."""
+    def _generate_segment_with_groq(self, ctx: Dict, format_type: str) -> Dict[str, str]:
+        """Generate segment-targeted content using Groq API."""
         user_prompt = f"""Generate a GROUP {format_type} marketing message targeting multiple farmers with these EXACT parameters:
 - Crop: {ctx['crop']}
 - Current Stage: {ctx['stage']}
@@ -553,15 +585,14 @@ Format your response as:
 ORIGINAL: <message in target language>
 ENGLISH: <english translation>
 """
-        response = self.gemini_model.generate_content(
-            [
-                {
-                    "role": "user",
-                    "parts": [{"text": SYSTEM_PROMPT + "\n\n" + user_prompt}],
-                }
-            ]
+        response = self.groq_client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": user_prompt},
+            ],
         )
-        text = response.text.strip()
+        text = response.choices[0].message.content.strip()
 
         original = text
         english = ""
@@ -579,16 +610,34 @@ ENGLISH: <english translation>
         """Generate segment-targeted content using pre-built vernacular templates."""
         lang = ctx["language"]
         templates = SEGMENT_TEMPLATES.get(lang, SEGMENT_TEMPLATES["Hindi"])
-
-        result = {}
-        for fmt in ["whatsapp", "sms", "voice_script"]:
-            template = templates.get(fmt, "")
-            result[fmt] = template.format(**ctx) if template else ""
-
-        return result
+        if format_type == "all":
+            result = {}
+            for fmt in ["whatsapp", "sms", "voice_script"]:
+                t = templates.get(fmt, "")
+                result[fmt] = t.format(**ctx) if t else ""
+            return result
+        template = templates.get(format_type, "")
+        return {format_type: template.format(**ctx) if template else ""}
 
     def _generate_segment_visual_prompt(self, ctx: Dict) -> str:
-        """Generate a visual prompt for segment-targeted campaign imagery."""
+        """Generate segment visual concept prompt — Groq first, template fallback."""
+        if self.groq_client:
+            try:
+                return self._generate_visual_with_groq(ctx)
+            except Exception as e:
+                print(f"[ContentEngine] Groq segment visual prompt failed: {e}. Falling back.")
+        return self._generate_segment_visual_prompt_template(ctx)
+
+    def _generate_segment_video_storyboard(self, ctx: Dict) -> list:
+        """Generate segment video storyboard — Groq first, template fallback."""
+        if self.groq_client:
+            try:
+                return self._generate_video_with_groq(ctx)
+            except Exception as e:
+                print(f"[ContentEngine] Groq segment video storyboard failed: {e}. Falling back.")
+        return self._generate_segment_video_storyboard_template(ctx)
+
+    def _generate_segment_visual_prompt_template(self, ctx: Dict) -> str:
         lang_script = {
             "Hindi": "Devanagari script",
             "Punjabi": "Gurmukhi script",
@@ -612,8 +661,7 @@ ENGLISH: <english translation>
             f"elements, high contrast for mobile viewing. Aspect ratio: 1:1 square."
         )
 
-    def _generate_segment_video_storyboard(self, ctx: Dict) -> list:
-        """Generate a 30-second video storyboard targeting a farmer segment."""
+    def _generate_segment_video_storyboard_template(self, ctx: Dict) -> list:
         return [
             {
                 "scene": 1,
