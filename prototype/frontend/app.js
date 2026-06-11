@@ -683,10 +683,10 @@ async function loadAnalytics() {
         // WhatsApp funnel (keep)
         const maxWa = wa.total_messages || 1;
         $('wa-funnel').innerHTML = `<div class="funnel-chart">
-            <div class="funnel-step"><div class="funnel-label">Sent</div><div class="funnel-bar" style="width:100%;background:linear-gradient(90deg,#6366f1,#818cf8)">${fmt(wa.total_messages)}</div><div class="funnel-rate">100%</div></div>
-            <div class="funnel-step"><div class="funnel-label">Delivered</div><div class="funnel-bar" style="width:${wa.delivery_rate * 100}%;background:linear-gradient(90deg,#3b82f6,#60a5fa)">${fmt(wa.delivered)}</div><div class="funnel-rate">${pct(wa.delivery_rate)}</div></div>
-            <div class="funnel-step"><div class="funnel-label">Opened</div><div class="funnel-bar" style="width:${(wa.opened / maxWa) * 100}%;background:linear-gradient(90deg,#f59e0b,#fbbf24)">${fmt(wa.opened)}</div><div class="funnel-rate">${pct(wa.open_rate)}</div></div>
-            <div class="funnel-step"><div class="funnel-label">Clicked</div><div class="funnel-bar" style="width:${(wa.clicked / maxWa) * 100}%;background:linear-gradient(90deg,#22c55e,#4ade80)">${fmt(wa.clicked)}</div><div class="funnel-rate">${pct(wa.click_rate)}</div></div>
+            <div class="funnel-step"><div class="funnel-label">Sent</div><div class="funnel-bar" style="width:100%;background:linear-gradient(90deg,#6366f1,#818cf8)">${fmt(wa.total_messages)}</div></div>
+            <div class="funnel-step"><div class="funnel-label">Delivered</div><div class="funnel-bar" style="width:${wa.delivery_rate * 100}%;background:linear-gradient(90deg,#3b82f6,#60a5fa)">${fmt(wa.delivered)}</div></div>
+            <div class="funnel-step"><div class="funnel-label">Opened</div><div class="funnel-bar" style="width:${(wa.opened / maxWa) * 100}%;background:linear-gradient(90deg,#f59e0b,#fbbf24)">${fmt(wa.opened)}</div></div>
+            <div class="funnel-step"><div class="funnel-label">Clicked</div><div class="funnel-bar" style="width:${(wa.clicked / maxWa) * 100}%;background:linear-gradient(90deg,#22c55e,#4ade80)">${fmt(wa.clicked)}</div></div>
         </div>`;
 
         // Conversion by crop — bar chart sorted by CTA rate
